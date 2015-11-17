@@ -16,14 +16,74 @@ function _draw()
 
   foreach(actors, draw_actor)
 
-  print("e: " ..enemyx, 0,115,6)
-  print("c: "  ..char.x, 32,115,6)
+  print("x: " ..count(reachable), 0,115,6)
+  print("y: " ..enemyy, 32,115,6)
 end
 
 function _update()
   control(char)
   move(char)
-  move(enemy)
+
+  initial_positions = node(enemy.x, enemy.y)
+
+  path      = {}
+  reachable = {initial_positions}
+  comefrom  = {s(initial_positions)}
+
+  while #reachable > 0 do
+    -- local goal    = node(char.x, char.y)
+    local current = reachable[1]
+
+    -- if node is the goal, buid the path
+    if (current == goal) break
+
+    -- do not try to find it out again
+    -- del(reachable, current)
+    -- add(comefrom, current)
+
+    adjacents = adjacent_nodes(current)
+    if #adjacents > 0 then
+      for n in all(adjacents) do
+        if comefrom[s(n)] == nil then
+            add(reachable, n)
+            comefrom[s(n)] = current
+      end
+    end
+  end
+
+
+    del(reachable, current)
+
+
+    -- where do we go from here?
+    -- unexplored_adjacents = adjacent_nodes(current)
+    -- foreach(explored, function(n) del(unexplored_adjacents, n) end )
+    -- foreach(unexplored_adjacents, function(n)
+    --   n.previous = current
+    --   add(reachable, n)
+    -- end)
+  end
+
+  local c = {x,y}
+	while camefrom[s(c)] ~= nil do
+		add(path,c)
+		c = camefrom[s(c)]
+	end
+
+
+end
+
+-- left, right, up, down
+function adjacent_nodes(n)
+	return {
+		node(n.x-1,n.y),
+		node(n.x+1,n.y),  -- right
+		node(n.x, n.y-1), -- up
+		node(n.x,n.y+1)}  -- down
+end
+
+function node(x, y)
+  return {x=x, y=y}
 end
 
 -- custom methods
@@ -34,27 +94,27 @@ function control(char)
   if (btnp(2)) char.dy -= inertia
   if (btnp(3)) char.dy += inertia
 
-  if (btnp(0) or btnp(1) or btnp(2) or btnp(3)) then
-    if (enemy.x > char.x)  then
-      enemy.dx -= inertia
-      lastmove = "x"
-      -- return true
-    end
-    if (enemy.y > char.y) then
-      enemy.dy -= inertia
-      lastmove = "y"
-      -- return true
-    end
-    if (enemy.x < char.x) then
-      enemy.dx += inertia
-      lastmove = "x"
-      -- return true
-    end
-    if (enemy.y < char.y) then
-      enemy.dy += inertia
-      --  return true
-    end
-  end
+  -- if (btnp(0) or btnp(1) or btnp(2) or btnp(3)) then
+  --   if (enemy.x > char.x)  then
+  --     enemy.dx -= inertia
+  --     lastmove = "x"
+  --     -- return true
+  --   end
+  --   if (enemy.y > char.y) then
+  --     enemy.dy -= inertia
+  --     lastmove = "y"
+  --     -- return true
+  --   end
+  --   if (enemy.x < char.x) then
+  --     enemy.dx += inertia
+  --     lastmove = "x"
+  --     -- return true
+  --   end
+  --   if (enemy.y < char.y) then
+  --     enemy.dy += inertia
+  --     --  return true
+  --   end
+  -- end
 end
 
 function move(char)
@@ -109,6 +169,18 @@ end
 --   if (enemy.x > char.x) enemy.dx -= inertia
 --   enemy.dx -= inertia
 -- end
+
+function s(t)
+	return t.x.."_"..t.y
+end
+
+function contains(t,v)
+	for k,val in pairs(t) do
+		if (val[1] == v[1] and val[2] == v[2]) return true
+	end
+
+	return false
+end
 
 __gfx__
 0000000a000200020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

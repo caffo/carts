@@ -6,8 +6,11 @@ actors = {}
 function _init()
   enemyx = flr(rnd(10))+3
   enemyy = flr(rnd(10))+3
-  char   = actor(2, 2, 5)
-  enemy  = actor(enemyx,enemyy, 0)
+  player = spawn_actor(8,2,5)
+  enemy  = spawn_actor(enemyx,enemyy,7)
+  inertia = 1
+  debugdist = 0
+  chase_strategy = 2 -- 0=allow diags, 1=no diags, one move, 2=no diags, but gets picks random closer direction
 end
 
 function _draw()
@@ -16,77 +19,191 @@ function _draw()
 
   foreach(actors, draw_actor)
 
-  print("e: " ..enemyx, 0,115,6)
-  print("c: "  ..char.x, 32,115,6)
+  print("x: " ..player.x, 0,113,6)
+  print("y: " ..player.y, 32,113,6)
+  print("x: " ..enemy.x,  64,113,6)
+  print("y: " ..enemy.y, 96,113,6)
+  print("distance: " ..debugdist, 0,121,6)
+end
+
+function debug(bool)
+  if (bool == true) then return "true" else return "false" end
 end
 
 function _update()
-  control(char)
-  move(char)
-  move(enemy)
+  handle_player_movement(player)
+  handle_npc_movement()
+  distance(player,enemy)
 end
 
 -- custom methods
-function control(char)
-  inertia = .5
-  if (btnp(0)) char.dx -= inertia
-  if (btnp(1)) char.dx += inertia
-  if (btnp(2)) char.dy -= inertia
-  if (btnp(3)) char.dy += inertia
+function check_for_input()
+  return btnp(0) or btnp(1) or btnp(2) or btnp(3)
+end
 
-  if (btnp(0) or btnp(1) or btnp(2) or btnp(3)) then
-    if (enemy.x > char.x)  then
-      enemy.dx -= inertia
-      lastmove = "x"
-      -- return true
-    end
-    if (enemy.y > char.y) then
-      enemy.dy -= inertia
-      lastmove = "y"
-      -- return true
-    end
-    if (enemy.x < char.x) then
-      enemy.dx += inertia
-      lastmove = "x"
-      -- return true
-    end
-    if (enemy.y < char.y) then
-      enemy.dy += inertia
-      --  return true
+function handle_player_movement(player)
+  if check_for_input() then
+    if (btnp(0)) player.dx -= inertia
+    if (btnp(1)) player.dx += inertia
+    if (btnp(2)) player.dy -= inertia
+    if (btnp(3)) player.dy += inertia
+  end
+  move(player)
+end
+
+function handle_npc_movement()
+  if check_for_input() then
+    for npc in all(actors) do
+      if npc != player then
+        if distance(npc,player) > 1 then
+          move_towards(npc,player)
+          move(npc)
+        -- my solution to disallowing the player to overlap the enemy:
+        -- make the enemy run away if the player occupies the same space
+        -- else
+        --   move_away(npc)
+        --   move(npc)
+        end
+
+      end
     end
   end
 end
 
-function move(char)
-  if solid_area(char.x+char.dx, char.y+char.dy, char.w,char.h) then
-    char.dx = 0
-    char.dy = 0
+function distance(a,b)
+  local xd = (a.x + a.w/2) - (b.x + b.w/2)
+  local yd = (a.y + a.h/2) - (b.y + b.h/2)
+  debugdist = flr(sqrt( xd * xd + yd * yd ))
+  return debugdist
+end
+
+function move_towards(a, b)
+  if (chase_strategy == 0) chase_diag(a,b)
+  if (chase_strategy == 1) chase_stupid(a,b)
+  if (chase_strategy == 2) chase_with_decider(a,b)
+end
+
+function chase_diag(a,b)
+  -- this allows for diagonal movement
+  if (a.x > b.x) prep_to_move_left(a)
+  if (a.x < b.x) prep_to_move_right(a)
+  if (a.y > b.y) prep_to_move_up(a)
+  if (a.y < b.y) prep_to_move_down(a)
+end
+
+function chase_stupid(a,b)
+  -- this only allows for one direction at a time, and no diags
+  if a.x > b.x then
+    prep_to_move_left(a)
+    return
+  end
+  if a.x < b.x then
+    prep_to_move_right(a)
+    return
+  end
+  if a.y > b.y then
+    prep_to_move_up(a)
+    return
+  end
+  if a.y < b.y then
+    prep_to_move_down(a)
+    return
+  end
+end
+
+function chase_with_decider(a,b)
+  -- this disallows diags
+  local pick = flr(rnd(2))
+
+  -- entities are on the same row, so just move left or right
+  if a.y == b.y then
+    if (a.x > b.x) prep_to_move_left(a)
+    if (a.x < b.x) prep_to_move_right(a)
+    return
+  end
+
+  -- entities are on the same col, so just move up or down
+  if a.x == b.x then
+    if (a.y > b.y) prep_to_move_up(a)
+    if (a.y < b.y) prep_to_move_down(a)
+    return
+  end
+
+  -- entities aren't on the same row or col, so pick to move up/down or left/right
+  if pick == 1 then
+    if (a.x > b.x) prep_to_move_left(a)
+    if (a.x < b.x) prep_to_move_right(a)
+  else
+    if (a.y > b.y) prep_to_move_up(a)
+    if (a.y < b.y) prep_to_move_down(a)
+  end
+end
+
+function prep_to_move_left(a)
+  a.dx -= inertia
+end
+
+function prep_to_move_right(a)
+  a.dx += inertia
+end
+
+function prep_to_move_up(a)
+  a.dy -= inertia
+end
+
+function prep_to_move_down(a)
+  a.dy += inertia
+end
+
+
+
+-- move a in a random direction
+function move_away(a)
+  local direction = flr(rnd(4))
+
+  if (direction == 0) a.dx += inertia
+  if (direction == 1) a.dx -= inertia
+  if (direction == 2) a.dy += inertia
+  if (direction == 3) a.dy -= inertia
+end
+
+function move(actor)
+  if solid_area(actor.x + actor.dx, actor.y + actor.dy, actor.w, actor.h) then
+    actor.dx = 0
+    actor.dy = 0
     return true
   end
 
-  char.x += char.dx
-  char.y += char.dy
+  for another_actor in all(actors) do
+    if actor != another_actor then
+      if actor.x + actor.dx == another_actor.x and actor.y + actor.dy == another_actor.y then
+        actor.dx = 0
+        actor.dy = 0
+      end
+    end
+  end
 
-  char.dx = 0
-  char.dy = 0
+  actor.x += actor.dx
+  actor.y += actor.dy
+
+  actor.dx = 0
+  actor.dy = 0
 end
 
--- collision logic
-
 function solid(x, y)
- val=mget(x, y)
- return fget(val, 1)
+ return fget(mget(x, y), 1)
 end
 
 function solid_area(x,y,w,h)
  return
-  solid(x-w,y-h) or
-  solid(x+w,y-h) or
-  solid(x-w,y+h) or
-  solid(x+w,y+h)
+  solid(x - w, y - h) or
+  solid(x + w, y - h) or
+  solid(x - w, y + h) or
+  solid(x + w, y + h)
 end
 
-function actor(x,y,s)
+
+function spawn_actor(x,y,s)
   a        = {}
   a.x      = x
   a.y      = y
@@ -105,20 +222,15 @@ function draw_actor(a)
   spr(a.sprite, sx, sy)
 end
 
--- function move_enemy(enemy, char, inertia)
---   if (enemy.x > char.x) enemy.dx -= inertia
---   enemy.dx -= inertia
--- end
-
 __gfx__
-0000000a000200020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000aa00a202020200505050000000cc0004004000077770008888880000000000000000000000000000000000000000000000000000000000000000000000000
-000aa00a0200020000000000c00cc00c004444000700707000888800000000000000000000000000000000000000000000000000000000000000000000000000
-a0a00a0a20202020050005050cc00000004004000707077000000000000000000000000000000000000000000000000000000000000000000000000000000000
-aa0aa0a0000200020000000000000cc0004444000707777000088000000000000000000000000000000000000000000000000000000000000000000000000000
-a00aa0002020202005050500c00cc00c404004040700000000088000000000000000000000000000000000000000000000000000000000000000000000000000
-00a00a0002000200000000000cc00000404004040077770000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0aaaaaa0202020200005000000000000044444400000000000888800000000000000000000000000000000000000000000000000000000000000000000000000
+0000000a000800080000000000000000000000007007770000000000770077000000000000000000000000000000000000000000000000000000000000000000
+000aa00a808080800000000000000cc0004004007077777008888880707770070000000000000000000000000000000000000000000000000000000000000000
+000aa00a0800080000000000c00cc00c004444007000000000888800700707070000000000000000000000000000000000000000000000000000000000000000
+a0a00a0a80808080000000000cc00000004004007070707000000000777777770000000000000000000000000000000000000000000000000000000000000000
+aa0aa0a0000800080000000000000cc0004444000007770000088000007077000000000000000000000000000000000000000000000000000000000000000000
+a00aa0008080808000000000c00cc00c404004047777007700088000007777000000000000000000000000000000000000000000000000000000000000000000
+00a00a0008000800000000000cc00000404004040077000700000000000777700000000000000000000000000000000000000000000000000000000000000000
+0aaaaaa0808080800000000000000000044444400700777000888800000000770000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
@@ -240,7 +352,7 @@ a00aa0002020202005050500c00cc00c404004040700000000088000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __gff__
-0002000200000200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+0002000200020200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 __map__
 0101010101010101010101010101010100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000

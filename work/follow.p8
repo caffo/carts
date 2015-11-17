@@ -7,7 +7,7 @@ function _init()
   enemyx = flr(rnd(10))+3
   enemyy = flr(rnd(10))+3
   char   = actor(2, 2, 5)
-  enemy  = actor(enemyx,enemyy, 0)
+  enemy  = actor(enemyx,enemyy, 7)
 end
 
 function _draw()
@@ -16,14 +16,18 @@ function _draw()
 
   foreach(actors, draw_actor)
 
-  print("e: " ..enemyx, 0,115,6)
-  print("c: "  ..char.x, 32,115,6)
+  print("x: " ..char.x, 0,113,6)
+  print("y: "  ..char.y, 32,113,6)
+  print("x: " ..enemy.x,  64,113,6)
+  print("y: "  ..enemy.y, 96,113,6)
+  print("x: " ..enemy.dx, 0,121,6)
+  print("y: "  ..enemy.dy, 32,121,6)
 end
 
 function _update()
   control(char)
   move(char)
-  move(enemy)
+  -- move(enemy)
 end
 
 -- custom methods
@@ -35,25 +39,23 @@ function control(char)
   if (btnp(3)) char.dy += inertia
 
   if (btnp(0) or btnp(1) or btnp(2) or btnp(3)) then
-    if (enemy.x > char.x)  then
-      enemy.dx -= inertia
-      lastmove = "x"
-      -- return true
+    enemy.dx = char.x - enemy.x
+    enemy.dy = char.y - enemy.y
+
+    if (enemy.dx != 0) enemy.dx = enemy.dx/abs(enemy.dx) * 1
+    if (enemy.dy != 0) enemy.dy = enemy.dy/abs(enemy.dy) * 1
+
+    if solid_area(enemy.x+enemy.dx, enemy.y+enemy.dy, enemy.w,enemy.h) then
+      enemy.dx = 0
+      enemy.dy = 0
     end
-    if (enemy.y > char.y) then
-      enemy.dy -= inertia
-      lastmove = "y"
-      -- return true
+
+    if flr(rnd(2)) == 0 and enemy.dx != 0 then
+      enemy.x += enemy.dx
+    else
+      enemy.y += enemy.dy
     end
-    if (enemy.x < char.x) then
-      enemy.dx += inertia
-      lastmove = "x"
-      -- return true
-    end
-    if (enemy.y < char.y) then
-      enemy.dy += inertia
-      --  return true
-    end
+
   end
 end
 
